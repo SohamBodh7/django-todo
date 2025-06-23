@@ -43,14 +43,15 @@ pipeline {
         }
 
         stage('Restart Django Server') {
-            steps {
-                sh '''
-                pkill -f "manage.py runserver" || true
-                . $VENV/bin/activate
-                nohup python manage.py runserver $HOST:$PORT > server.log 2>&1 &
-                '''
-            }
-        }
+    	    steps {
+        	sh '''
+        	pkill -f "manage.py runserver" || true
+        	. $VENV/bin/activate
+        	nohup python manage.py runserver $HOST:$PORT > server.log 2>&1 &
+        	disown
+        	'''
+    	   }
+	}
     }
 
     post {
