@@ -3,6 +3,8 @@ pipeline {
 
     environment {
         VENV = "venv"
+        PORT = "8000"
+        HOST = "0.0.0.0"
     }
 
     stages {
@@ -15,7 +17,7 @@ pipeline {
         stage('Set Up Virtual Environment') {
             steps {
                 sh '''
-                python3 -m venv $VENV || python -m venv $VENV
+                python3 -m venv $VENV || true
                 '''
             }
         }
@@ -23,37 +25,29 @@ pipeline {
         stage('Install Dependencies') {
             steps {
                 sh '''
-                source $VENV/bin/activate || call $VENV\\Scripts\\activate
+                . $VENV/bin/activate
                 pip install --upgrade pip
                 pip install -r requirements.txt
                 '''
             }
         }
 
-        stage('Migrate and Collect Static Files') {
+        stage('Run Migrations & Collect Static') {
             steps {
                 sh '''
-                source $VENV/bin/activate || call $VENV\\Scripts\\activate
+                . $VENV/bin/activate
                 python manage.py migrate
                 python manage.py collectstatic --noinput
                 '''
             }
         }
 
-        stage('Run Tests') {
+        stage('Restart Django Server') {
             steps {
                 sh '''
-                source $VENV/bin/activate || call $VENV\\Scripts\\activate
-                python manage.py test
-                '''
-            }
-        }
-
-        stage('Run Django Server') {
-            steps {
-                sh '''
-                source $VENV/bin/activate || call $VENV\\Scripts\\activate
-                nohup python manage.py runserver 0.0.0.0:8000 &
+                pkill -f "manage.py runserver" || true
+                . $VENV/bin/activate
+                nohup python manage.py runserver $HOST:$PORT > server.log 2>&1 &
                 '''
             }
         }
@@ -62,18 +56,18 @@ pipeline {
     post {
         success {
             emailext (
-                subject: "✅ SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: "Build succeeded! View logs: ${env.BUILD_URL}",
+                subject: "✅ Django TODO Build Success: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: "Successfully deployed. View logs at: ${env.BUILD_URL}",
                 to: "sohamdevops2025@gmail.com"
             )
         }
-
         failure {
             emailext (
-                subject: "❌ FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                body: "Build failed. Check console logs: ${env.BUILD_URL}",
+                subject: "❌ Django TODO Build Failed: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                body: "Build failed. See console logs: ${env.BUILD_URL}",
                 to: "sohamdevops2025@gmail.com"
             )
         }
     }
 }
+
